@@ -168,7 +168,7 @@ func App() *cli.App {
 
 		serverC <- server
 
-		if config.Debug.Address != "" {
+		if config.Debug.Address == "" {
 			var l net.Listener
 			if filepath.IsAbs(config.Debug.Address) {
 				if l, err = sys.GetLocalListener(config.Debug.Address, config.Debug.UID, config.Debug.GID); err != nil {
