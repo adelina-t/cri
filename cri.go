@@ -51,7 +51,7 @@ func init() {
 	if ok {
 		fmt.Printf("called from %s#%d\n", file, no)
 	}
-	_, file, no, ok := runtime.Caller(2)
+	_, file, no, ok = runtime.Caller(2)
 	if ok {
 		fmt.Printf("called from %s#%d\n", file, no)
 	}
