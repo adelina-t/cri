@@ -19,6 +19,8 @@ package cri
 import (
 	"flag"
 	"path/filepath"
+	"fmt"
+	"runtime"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/services/containers/v1"
@@ -44,6 +46,15 @@ import (
 // TODO(random-liu): Use github.com/pkg/errors for our errors.
 // Register CRI service plugin
 func init() {
+	fmt.Printf("Who the hell calls this?")
+	_, file, no, ok := runtime.Caller(1)
+	if ok {
+		fmt.Printf("called from %s#%d\n", file, no)
+	}
+	_, file, no, ok := runtime.Caller(2)
+	if ok {
+		fmt.Printf("called from %s#%d\n", file, no)
+	}
 	config := criconfig.DefaultConfig()
 	plugin.Register(&plugin.Registration{
 		Type:   plugin.GRPCPlugin,
