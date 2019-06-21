@@ -389,9 +389,7 @@ func lexBareKey(lx *lexer) stateFn {
 		lx.emit(itemText)
 		return lexKeyEnd
 	default:
-		fmt.Printf("Contine as character %c", r)
-		fmt.Printf("Contine as bare %v", r)
-		return lx.errorf("bare keys cannot contain %s", int(r))
+		return lx.errorf("bare keys cannot contain %v", int(r))
 	}
 }
 
