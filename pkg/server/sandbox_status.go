@@ -18,6 +18,8 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/errdefs"
@@ -30,9 +32,17 @@ import (
 	sandboxstore "github.com/containerd/cri/pkg/store/sandbox"
 )
 
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	fmt.Printf("%s took %d nanoseconds", name, elapsed.Nanoseconds())
+}
+
 // PodSandboxStatus returns the status of the PodSandbox.
 func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandboxStatusRequest) (*runtime.PodSandboxStatusResponse, error) {
+	start := time.Now()
+	fmt.Print("### SandboxStore GET Started")
 	sandbox, err := c.sandboxStore.Get(r.GetPodSandboxId())
+	timeTrack(start, "### SandboxStore GET")
 	if err != nil {
 		return nil, errors.Wrap(err, "an error occurred when try to find sandbox")
 	}
