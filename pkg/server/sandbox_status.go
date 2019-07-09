@@ -34,7 +34,7 @@ import (
 
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Printf("%s took %d nanoseconds", name, elapsed.Nanoseconds())
+	fmt.Printf("%s took %d nanoseconds\n", name, elapsed.Nanoseconds())
 }
 
 // PodSandboxStatus returns the status of the PodSandbox.
@@ -42,7 +42,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 	start := time.Now()
 	fmt.Print("### SandboxStore GET Started")
 	sandbox, err := c.sandboxStore.Get(r.GetPodSandboxId())
-	timeTrack(start, "### SandboxStore GET")
+	timeTrack(start, fmt.Sprintf("### SandboxStore GET for sandbox %s", sandbox))
 	if err != nil {
 		return nil, errors.Wrap(err, "an error occurred when try to find sandbox")
 	}
@@ -69,7 +69,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get verbose sandbox container info")
 	}
-
+	timeTrack(start, fmt.Sprintf("### PodSandboxStatus for sandbox %s", sandbox))
 	return &runtime.PodSandboxStatusResponse{
 		Status: status,
 		Info:   info,
