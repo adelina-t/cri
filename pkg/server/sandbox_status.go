@@ -47,10 +47,12 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 		return nil, errors.Wrap(err, "an error occurred when try to find sandbox")
 	}
 
+	start1 := time.Now()
 	ip, err := c.getIP(sandbox)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get sandbox ip")
 	}
+	timeTrack(start1, fmt.Sprintf("### c.GetIP for sandbox %s", sandbox))
 	status := toCRISandboxStatus(sandbox.Metadata, sandbox.Status.Get(), ip)
 	if status.GetCreatedAt() == 0 {
 		// CRI doesn't allow CreatedAt == 0.
@@ -60,6 +62,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 		}
 		status.CreatedAt = info.CreatedAt.UnixNano()
 	}
+	timeTrack(start, fmt.Sprintf("### PodSandboxStatus for sandbox %s", sandbox))
 	if !r.GetVerbose() {
 		return &runtime.PodSandboxStatusResponse{Status: status}, nil
 	}
