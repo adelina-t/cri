@@ -40,10 +40,11 @@ func timeTrack(start time.Time, name string) {
 // PodSandboxStatus returns the status of the PodSandbox.
 func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandboxStatusRequest) (*runtime.PodSandboxStatusResponse, error) {
 	start := time.Now()
-	fmt.Print("### SandboxStore GET Started")
+	fmt.Print("\n ### SandboxStore GET Started \n")
 	sandbox, err := c.sandboxStore.Get(r.GetPodSandboxId())
-	timeTrack(start, fmt.Sprintf("### SandboxStore GET for sandbox %s", sandbox))
+	timeTrack(start, fmt.Sprintf("\n ### SandboxStore GET for sandbox %s \n", sandbox))
 	if err != nil {
+		fmt.Printf("\n ### An error occured while getting sandbox \n")
 		return nil, errors.Wrap(err, "an error occurred when try to find sandbox")
 	}
 
@@ -52,7 +53,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get sandbox ip")
 	}
-	timeTrack(start1, fmt.Sprintf("### c.GetIP for sandbox %s", sandbox))
+	timeTrack(start1, fmt.Sprintf("\n ### c.GetIP for sandbox %s \n", sandbox))
 	status := toCRISandboxStatus(sandbox.Metadata, sandbox.Status.Get(), ip)
 	if status.GetCreatedAt() == 0 {
 		// CRI doesn't allow CreatedAt == 0.
@@ -62,7 +63,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 		}
 		status.CreatedAt = info.CreatedAt.UnixNano()
 	}
-	timeTrack(start, fmt.Sprintf("### PodSandboxStatus for sandbox %s", sandbox))
+	timeTrack(start, fmt.Sprintf("\n ### PodSandboxStatus for sandbox %s \n", sandbox))
 	if !r.GetVerbose() {
 		return &runtime.PodSandboxStatusResponse{Status: status}, nil
 	}
@@ -72,7 +73,7 @@ func (c *criService) PodSandboxStatus(ctx context.Context, r *runtime.PodSandbox
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get verbose sandbox container info")
 	}
-	timeTrack(start, fmt.Sprintf("### PodSandboxStatus for sandbox %s", sandbox))
+	timeTrack(start, fmt.Sprintf("\n### PodSandboxStatus for sandbox %s \n", sandbox))
 	return &runtime.PodSandboxStatusResponse{
 		Status: status,
 		Info:   info,
