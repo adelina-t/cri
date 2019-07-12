@@ -19,6 +19,8 @@ limitations under the License.
 package server
 
 import (
+	"fmt"
+
 	sandboxstore "github.com/containerd/cri/pkg/store/sandbox"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -35,6 +37,7 @@ func (c *criService) doStopPodSandbox(id string, sandbox sandboxstore.Sandbox) e
 		In the future, once TearDownPod is idempotent, this will be fixed.*/
 
 		//Close the sandbox network namespace if it was created
+		fmt.Printf("$$$ doStopPodSandbox called ")
 		if err := sandbox.NetNS.Remove(); err != nil {
 			return errors.Wrapf(err, "failed to remove network namespace for sandbox %q", id)
 		}

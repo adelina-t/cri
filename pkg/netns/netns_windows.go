@@ -19,6 +19,7 @@ limitations under the License.
 package netns
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/Microsoft/hcsshim/hcn"
@@ -62,12 +63,16 @@ func LoadNetNS(path string) *NetNS {
 // Remove removes network namepace if it exists and not closed. Remove is idempotent,
 // meaning it might be invoked multiple times and provides consistent result.
 func (n *NetNS) Remove() error {
+	fmt.Printf("\n $$$ Incerc sa iau lock-ul in Remove() pt netns %s", n.path)
 	n.Lock()
 	defer n.Unlock()
 	if !n.closed {
+		fmt.Printf("\n $$$ Am luat lock-ul in Remove() pt netns %s", n.path)
 		hcnNamespace, err := hcn.GetNamespaceByID(n.path)
+		fmt.Printf("\n $$$ L72 in Remove() pt netns %s", n.path)
 		if err == nil {
 			hcnNamespace.Delete()
+			fmt.Printf("\n $$$ L75 in Remove() pt netns %s", n.path)
 			n.closed = true
 		}
 		// ToDo: Check for NotFound error & return nil
@@ -76,19 +81,23 @@ func (n *NetNS) Remove() error {
 	if n.restored {
 		n.restored = false
 	}
-	return nil
+
 }
 
 // Closed checks whether the network namespace has been closed.
 func (n *NetNS) Closed() (bool, error) {
+	fmt.Printf("\n $$$ Incerc sa iau lock-ul in Closed() pt netns %s", n.path)
 	n.Lock()
+	fmt.Printf("\n $$$ Am luat lock-ul in Closed() pt netns %s", n.path)
 	defer n.Unlock()
 	return n.closed, nil
 }
 
 // GetPath returns network namespace path for sandbox container
 func (n *NetNS) GetPath() string {
+	fmt.Printf("\n $$$ Incerc sa iau lock-ul in GetPath() pt netns %s", n.path)
 	n.Lock()
+	fmt.Printf("\n $$$ Am luat lock-ul in GetPath() pt netns %s", n.path)
 	defer n.Unlock()
 	return n.path
 }
