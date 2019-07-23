@@ -19,7 +19,10 @@ limitations under the License.
 package netns
 
 import (
+	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Microsoft/hcsshim/hcn"
 	"github.com/pkg/errors"
@@ -63,22 +66,39 @@ func LoadNetNS(path string) *NetNS {
 // meaning it might be invoked multiple times and provides consistent result.
 func (n *NetNS) Remove() error {
 	n.Lock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	result := make(chan bool)
 	defer n.Unlock()
-	if !n.closed {
-		hcnNamespace, err := hcn.GetNamespaceByID(n.path)
-		if err == nil {
-			hcnNamespace.Delete()
-			n.closed = true
-		} else if hcn.IsNotFoundError(err) {
-			// We treat as a success if the namespace is not found
-			n.closed = true
-		} else {
-			return errors.Wrap(err, "failed while attempting to get namespace")
+	defer cancel()
+	go func() {
+		if !n.closed {
+			hcnNamespace, err := hcn.GetNamespaceByID(n.path)
+			if err == nil {
+				hcnNamespace.Delete()
+				n.closed = true
+			} else if hcn.IsNotFoundError(err) {
+				// We treat as a success if the namespace is not found
+				n.closed = true
+			} else {
+				result <- false
+                                // return errors.Wrap(err, "failed while attempting to get namespace")
+			}
 		}
+		if n.restored {
+			n.restored = false
+		}
+		result <- true
+	}()
+
+	select {
+	case <-ctx.Done():
+		if ctx.Err() != context.Canceled {
+			fmt.Println("##### In remove namespace. Timeout for call")
+		}
+	case <-result:
+		fmt.Println("Result from remove namespace")
 	}
-	if n.restored {
-		n.restored = false
-	}
+
 	return nil
 }
 
