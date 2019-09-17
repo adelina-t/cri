@@ -295,47 +295,46 @@ func (c *criService) generateContainerSpec(id string, sandboxID string, sandboxP
 	// Add OCI Mounts
 	automanageVhdIndex := 0
 	for _, m := range config.GetMounts() {
-		var formattedDestination string
+		src := m.HostPath
+		var destination string
 		if sandboxPlatform == "linux/amd64" {
-			formattedDestination = strings.Replace(m.ContainerPath, "\\", "/", -1)
+			destination = strings.Replace(m.ContainerPath, "\\", "/", -1)
 			//kubelet will prepend c: if it's running on Windows and there's no drive letter, so we need to strip it out
-			if match, _ := regexp.MatchString("^[A-Za-z]:", formattedDestination); match {
-				formattedDestination = formattedDestination[2:]
+			if match, _ := regexp.MatchString("^[A-Za-z]:", destination); match {
+				destination = destination[2:]
 			}
 		} else {
-			formattedDestination = strings.Replace(m.ContainerPath, "/", "\\", -1)
+			destination = strings.Replace(m.ContainerPath, "/", "\\", -1)
 		}
 
-		mo := runtimespec.Mount{
-			Source:      m.HostPath,
-			Destination: formattedDestination,
-			Options:     []string{"ro"},
+		var mountType string
+		var options []string
+		if sandboxPlatform == "linux/amd64" {
+			options = append(options, "rbind")
 		}
-		if !m.Readonly {
-			mo.Options[0] = "rw"
+
+		if m.GetReadonly() {
+			options = append(options, "ro")
+		} else {
+			options = append(options, "rw")
 		}
-		if strings.HasPrefix(mo.Source, `\\.\PHYSICALDRIVE`) {
-			mo.Type = "physical-disk"
+
+		if strings.HasPrefix(src, `\\.\PHYSICALDRIVE`) {
+			mountType = "physical-disk"
+		} else if strings.HasPrefix(src, `\\.\pipe`) {
 			if sandboxPlatform == "linux/amd64" {
-				mo.Options = append(mo.Options, "bind")
+				return nil, errors.Errorf(`pipe mount.HostPath '%s' not supported for LCOW`, src)
 			}
-		} else if strings.HasPrefix(mo.Source, `\\.\pipe`) {
-			// mo.Type == "" for pipe but we don't want to Stat the path.
-			if sandboxPlatform == "linux/amd64" {
-				return nil, errors.Errorf(`pipe mount.HostPath '%s' not supported for LCOW`, mo.Source)
-			}
-		} else if strings.HasPrefix(mo.Source, "sandbox://") {
+		} else if strings.HasPrefix(src, "sandbox://") {
 			// mount source prefix sandbox:// is only supported with lcow
 			if sandboxPlatform != "linux/amd64" {
-				return nil, errors.Errorf(`sandbox://' mounts are only supported for LCOW`, mo.Source)
+				return nil, errors.Errorf(`sandbox://' mounts are only supported for LCOW`, src)
 			}
-
-			mo.Options = append(mo.Options, "bind")
-			mo.Type = "bind"
-		} else if strings.HasPrefix(mo.Source, "automanage-vhd://") {
-			formattedSource, err := filepath.EvalSymlinks(strings.TrimPrefix(mo.Source, "automanage-vhd://"))
+			mountType = "bind"
+		} else if strings.HasPrefix(src, "automanage-vhd://") {
+			formattedSource, err := filepath.EvalSymlinks(strings.TrimPrefix(src, "automanage-vhd://"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to EvalSymlinks automanage-vhd:// mount.HostPath %q", mo.Source)
+				return nil, errors.Wrapf(err, "failed to EvalSymlinks automanage-vhd:// mount.HostPath %q", src)
 			}
 			s, err := c.os.Stat(formattedSource)
 			if err != nil {
@@ -362,15 +361,12 @@ func (c *criService) generateContainerSpec(id string, sandboxID string, sandboxP
 					return nil, errors.Errorf("automanage-vhd:// prefix MUST have .vhd or .vhdx extension found: %q", ext)
 				}
 			}
-			mo.Source = formattedSource
-			mo.Type = "automanage-virtual-disk"
-			if sandboxPlatform == "linux/amd64" {
-				mo.Options = append(mo.Options, "bind")
-			}
-		} else if strings.HasPrefix(mo.Source, "vhd://") {
-			formattedSource, err := filepath.EvalSymlinks(strings.TrimPrefix(mo.Source, "vhd://"))
+			src = formattedSource
+			mountType = "automanage-virtual-disk"
+		} else if strings.HasPrefix(src, "vhd://") {
+			formattedSource, err := filepath.EvalSymlinks(strings.TrimPrefix(src, "vhd://"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to EvalSymlinks vhd:// mount.HostPath %q", mo.Source)
+				return nil, errors.Wrapf(err, "failed to EvalSymlinks vhd:// mount.HostPath %q", src)
 			}
 			s, err := c.os.Stat(formattedSource)
 			if err != nil {
@@ -383,14 +379,10 @@ func (c *criService) generateContainerSpec(id string, sandboxID string, sandboxP
 			if ext != ".vhd" && ext != ".vhdx" {
 				return nil, errors.New("vhd:// prefix is only supported on file paths ending in .vhd or .vhdx")
 			}
-			mo.Source = formattedSource
-			mo.Type = "virtual-disk"
-			if sandboxPlatform == "linux/amd64" {
-				mo.Options = append(mo.Options, "bind")
-			}
+			src = formattedSource
+			mountType = "virtual-disk"
 		} else {
-			//normalize the format of the host path
-			formattedSource, err := filepath.EvalSymlinks(strings.Replace(m.HostPath, "/", "\\", -1))
+			formattedSource, err := filepath.EvalSymlinks(strings.Replace(src, "/", "\\", -1))
 			if err != nil {
 				return nil, err
 			}
@@ -398,15 +390,18 @@ func (c *criService) generateContainerSpec(id string, sandboxID string, sandboxP
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to Stat mount.HostPath '%s'", formattedSource)
 			}
-			mo.Source = formattedSource
+			src = formattedSource
 			if sandboxPlatform == "linux/amd64" {
-				// Linux requires a folder/file to be bind mount.
-				mo.Type = "bind"
-				mo.Options = append(mo.Options, "rbind")
+				mountType = "bind"
 			}
 		}
 
-		g.AddMount(mo)
+		g.AddMount(runtimespec.Mount{
+			Source:      src,
+			Destination: destination,
+			Type:        mountType,
+			Options:     options,
+		})
 	}
 
 	if sandboxPlatform == "linux/amd64" {
