@@ -109,13 +109,15 @@ func (c *criService) getSandboxMetrics(
 		}
 		if s, ok := v.(*runhcsstats.Statistics); ok {
 			timestamp := stats.Timestamp.UnixNano()
-			cs.Cpu = &runtime.CpuUsage{
-				Timestamp:            timestamp,
-				UsageCoreNanoSeconds: &runtime.UInt64Value{Value: s.VM.Processor.TotalRuntimeNS},
-			}
-			cs.Memory = &runtime.MemoryUsage{
-				Timestamp:       timestamp,
-				WorkingSetBytes: &runtime.UInt64Value{Value: s.VM.Memory.WorkingSetBytes},
+			if s.VM != nil {
+				cs.Cpu = &runtime.CpuUsage{
+					Timestamp:            timestamp,
+					UsageCoreNanoSeconds: &runtime.UInt64Value{Value: s.VM.Processor.TotalRuntimeNS},
+				}
+				cs.Memory = &runtime.MemoryUsage{
+					Timestamp:       timestamp,
+					WorkingSetBytes: &runtime.UInt64Value{Value: s.VM.Memory.WorkingSetBytes},
+				}
 			}
 		}
 	}
